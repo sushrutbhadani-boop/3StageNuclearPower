@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>India's Three-Stage Nuclear Power Programme</title>
+    
+    <!-- External Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Rajdhani:wght@500;700&family=Space+Mono&display=swap');
+
+        :root {
+            --bg-dark: #02040a;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --stage1-color: #3b82f6; /* Cherenkov Blue */
+            --stage2-color: #f97316; /* Liquid Sodium Orange */
+            --stage3-color: #10b981; /* U-233 Green */
+            --glass-bg: rgba(10, 15, 25, 0.75);
+            --glass-border: rgba(255, 255, 255, 0.08);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+            line-height: 1.7;
+        }
+
+        /* 3D Canvas Background */
+        #webgl-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* UI Overlay */
+        main {
+            position: relative;
+            z-index: 10;
+        }
+
+        section {
+            min-height: 100vh;
+            padding: 5rem 10%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+        }
+
+        h1, h2, h3 {
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 3rem;
+            max-width: 650px;
+            box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.7);
+            transform: translateY(30px);
+            opacity: 0;
+        }
+
+        .align-right {
+            align-self: flex-end;
+        }
+
+        .math-eq {
+            font-family: 'Space Mono', monospace;
+            background: rgba(0,0,0,0.6);
+            padding: 1.2rem;
+            border-radius: 8px;
+            border-left: 4px solid var(--stage1-color);
+            margin: 1.5rem 0;
+            font-size: 1.05rem;
+            color: #e2e8f0;
+            letter-spacing: 1px;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        /* Section Specifics */
+        #hero h1 {
+            font-size: 4.5rem;
+            line-height: 1.1;
+            background: linear-gradient(90deg, #ffffff, var(--stage1-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1rem;
+        }
+
+        .tagline {
+            font-size: 1.5rem;
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+            font-family: 'Rajdhani', sans-serif;
+        }
+
+        .data-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .data-card {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--glass-border);
+            padding: 1.5rem;
+            border-radius: 12px;
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+        
+        .data-card:hover {
+            transform: translateY(-5px);
+            background: rgba(255,255,255,0.05);
+        }
+
+        .data-card h4 { 
+            color: var(--text-muted); 
+            font-size: 0.9rem; 
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .data-card .value { 
+            font-size: 3rem; 
+            font-weight: 700; 
+            margin: 0.5rem 0; 
+            font-family: 'Rajdhani', sans-serif;
+        }
+        
+        #geology .value.u { color: var(--stage2-color); text-shadow: 0 0 20px rgba(249,115,22,0.4); }
+        #geology .value.th { color: var(--stage3-color); text-shadow: 0 0 20px rgba(16,185,129,0.4); }
+
+        /* Progress Bar */
+        #progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 5px;
+            background: var(--stage1-color);
+            width: 0%;
+            z-index: 100;
+            transition: background 0.5s ease;
+            box-shadow: 0 0 10px var(--stage1-color);
+        }
+
+        /* Tooltip / Glossary */
+        .glossary {
+            border-bottom: 1px dashed #cbd5e1;
+            cursor: help;
+            position: relative;
+            color: #cbd5e1;
+            font-weight: 600;
+        }
+
+        .nav-dots {
+            position: fixed;
+            right: 2rem;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 1.2rem;
+            z-index: 50;
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+        }
+        
+        .dot.active {
+            background: #fff;
+            transform: scale(1.8);
+            box-shadow: 0 0 10px rgba(255,255,255,0.5);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="progress-bar"></div>
+    <div id="webgl-container"></div>
+
+    <div class="nav-dots">
+        <div class="dot active"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+    </div>
+
+    <main>
+        <!-- Hero Section -->
+        <section id="hero">
+            <div class="glass-panel">
+                <h1>National Energy Independence</h1>
+                <p class="tagline">India's Three-Stage Nuclear Power Programme</p>
+                <p>An immersive journey from the atomic scale to the national power grid. Discover how India is systematically converting its unique geological constraints into a massive, self-sustaining energy advantage.</p>
+                <p style="margin-top: 1.5rem; font-family: 'Space Mono'; color: var(--stage1-color); font-size: 0.9rem;">
+                    Scroll to enter the reactor core <i class="fa-solid fa-arrow-down" style="margin-left: 5px;"></i>
+                </p>
+            </div>
+        </section>
+
+        <!-- Section 1: Geological Constraints -->
+        <section id="geology">
+            <div class="glass-panel align-right">
+                <h2 style="color: var(--stage2-color); font-size: 2rem; margin-bottom: 1rem;">1. The Geological Reality</h2>
+                <p>Global nuclear energy relies heavily on Uranium (<sup>235</sup>U). However, from a geological perspective, India's domestic Uranium reserves—mined in regions like the Singhbhum Shear Zone—are highly restricted.</p>
+                <div class="data-grid">
+                    <div class="data-card">
+                        <h4>India's Global Uranium Share</h4>
+                        <div class="value u">~2%</div>
+                        <p style="font-size: 0.8rem; color: #64748b;">Insufficient for long-term grid reliance</p>
+                    </div>
+                    <div class="data-card">
+                        <h4>India's Global Thorium Share</h4>
+                        <div class="value th">~25%</div>
+                        <p style="font-size: 0.8rem; color: #64748b;">Vast coastal Monazite sands</p>
+                    </div>
+                </div>
+                <p style="margin-top: 1.5rem;">Thorium is a <strong>fertile</strong> isotope, not fissile. It cannot sustain a nuclear chain reaction on its own. Dr. Homi Bhabha's three-stage roadmap was fundamentally designed to transmute this inert coastal sand into highly reactive, usable fissile fuel.</p>
+            </div>
+        </section>
+
+        <!-- Section 2: Stage 1 PHWR -->
+        <section id="stage1">
+            <div class="glass-panel" style="border-left: 4px solid var(--stage1-color);">
+                <h2 style="color: var(--stage1-color); font-size: 2rem;">Stage 1: Pressurised Heavy Water Reactors</h2>
+                <h3 style="color: var(--text-muted); font-size: 1.2rem; margin-bottom: 1rem;">The Spark Manufacturer</h3>
+                <p>The cycle begins with natural Uranium. Because this mined ore contains only a minuscule 0.7% of fissile <sup>235</sup>U, Heavy Water (D<sub>2</sub>O) must be utilized as a <span class="glossary" title="A medium that slows down fast neutrons to increase the probability of fission.">Moderator</span> to decelerate the neutrons to a "Thermal" (slow) state.</p>
+                
+                <div class="math-eq">
+                    <sup>238</sup>U + <sup>1</sup>n &rarr; <sup>239</sup>U &rarr; <sup>239</sup>Np &rarr; <sup>239</sup>Pu
+                </div>
+                
+                <p><strong>The Core Objective:</strong> While generating commercial electricity, the massive surrounding matrix of non-fissile <sup>238</sup>U absorbs stray thermal neutrons. Through beta decay, it transmutes into highly fissile <strong>Plutonium-239</strong>. This synthesized Plutonium is meticulously extracted to fuel the next stage.</p>
+            </div>
+        </section>
+
+        <!-- Section 3: Stage 2 FBR -->
+        <section id="stage2">
+            <div class="glass-panel align-right" style="border-left: 4px solid var(--stage2-color);">
+                <h2 style="color: var(--stage2-color); font-size: 2rem;">Stage 2: Fast Breeder Reactors</h2>
+                <h3 style="color: var(--text-muted); font-size: 1.2rem; margin-bottom: 1rem;">The Transmutation Engine</h3>
+                <p>The Plutonium extracted from Stage 1 serves as the primary core fuel here. This reactor operates without any moderator. Unhindered, fast neutrons violently strike the Plutonium, releasing a massive excess of secondary neutrons.</p>
+                
+                <div class="math-eq" style="border-left-color: var(--stage2-color);">
+                    <sup>232</sup>Th + <sup>1</sup>n &rarr; <sup>233</sup>Th &rarr; <sup>233</sup>Pa &rarr; <sup>233</sup>U
+                </div>
+
+                <p>A densely packed "blanket" of Thorium (<sup>232</sup>Th) surrounds the core. As the fast neutrons bombard this blanket, the Thorium absorbs them, breeding a completely new fissile isotope: <strong>Uranium-233</strong>. This brilliant engineering creates more fuel than it consumes.</p>
+            </div>
+        </section>
+
+        <!-- Section 4: Stage 3 AHWR -->
+        <section id="stage3">
+            <div class="glass-panel" style="border-left: 4px solid var(--stage3-color);">
+                <h2 style="color: var(--stage3-color); font-size: 2rem;">Stage 3: Advanced Heavy Water Reactors</h2>
+                <h3 style="color: var(--text-muted); font-size: 1.2rem; margin-bottom: 1rem;">The Ultimate Thorium Loop</h3>
+                <p>Absolute energy sovereignty is achieved here. Once sufficient <sup>233</sup>U is stockpiled from Stage 2, it is deployed as the central core fuel for Stage 3.</p>
+                <p>Inside the core, the <sup>233</sup>U undergoes fission, releasing thermal neutrons. The surrounding Thorium blanket absorbs these neutrons, continuously breeding new <sup>233</sup>U at the exact rate it is being burned to generate commercial power.</p>
+                <div class="data-card" style="margin-top: 1.5rem; text-align: left; background: rgba(16,185,129,0.05); border-color: rgba(16,185,129,0.3);">
+                    <h4 style="color: var(--stage3-color); margin-bottom: 0.5rem; font-size: 1.1rem;"><i class="fa-solid fa-infinity" style="margin-right: 8px;"></i> Closed Fuel Cycle</h4>
+                    <p style="font-size: 0.95rem; margin:0; color: #e2e8f0;">The reactor sustains its own fuel requirements indefinitely. It operates entirely by feeding raw coastal Thorium sand into the system, completely eliminating the need for Uranium imports.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // ==========================================
+        // 3D Visualization (Three.js) - Realistic Setup
+        // ==========================================
+        const container = document.getElementById('webgl-container');
+        const scene = new THREE.Scene();
+        // Deep, realistic fog for cinematic depth
+        scene.fog = new THREE.FogExp2(0x02040a, 0.015);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 15, 50);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
+        container.appendChild(renderer.domElement);
+
+        // --- Realistic Reactor Core Setup ---
+        const coreGroup = new THREE.Group();
+        scene.add(coreGroup);
+
+        // Fuel Rods Array
+        const rodsGroup = new THREE.Group();
+        const rodGeo = new THREE.CylinderGeometry(0.4, 0.4, 60, 16);
+        const rodMat = new THREE.MeshStandardMaterial({
+            color: 0x1a1a24,
+            metalness: 0.9,
+            roughness: 0.3,
+            emissive: 0x000000
+        });
+
+        // Create a circular grid of reactor rods
+        const rodMeshes = [];
+        for(let r = 1; r <= 5; r++) {
+            let count = r * 8;
+            for(let i = 0; i < count; i++) {
+                const angle = (i / count) * Math.PI * 2;
+                const radius = r * 3;
+                const rod = new THREE.Mesh(rodGeo, rodMat);
+                rod.position.set(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
+                
+                // Store original Y position for animation
+                rod.userData = { 
+                    baseY: (Math.random() - 0.5) * 10,
+                    speed: Math.random() * 0.02 + 0.01 
+                };
+                rod.position.y = rod.userData.baseY;
+                
+                rodsGroup.add(rod);
+                rodMeshes.push(rod);
+            }
+        }
+        coreGroup.add(rodsGroup);
+
+        // Central Reactor Glow (Dynamic Lighting)
+        const coreLight = new THREE.PointLight(0x3b82f6, 150, 80);
+        coreLight.position.set(0, 0, 0);
+        coreGroup.add(coreLight);
+        
+        const ambientLight = new THREE.AmbientLight(0x0a0f1a, 2);
+        scene.add(ambientLight);
+
+        // Dynamic Particle System (Neutrons / Cherenkov effect)
+        const particleCount = 4000;
+        const particleGeo = new THREE.BufferGeometry();
+        const particlePos = new Float32Array(particleCount * 3);
+        const particleVel = [];
+        
+        for(let i=0; i<particleCount; i++) {
+            particlePos[i*3] = (Math.random() - 0.5) * 60;
+            particlePos[i*3+1] = (Math.random() - 0.5) * 80;
+            particlePos[i*3+2] = (Math.random() - 0.5) * 60;
+            
+            // Random velocities for chaotic state
+            particleVel.push({
+                x: (Math.random() - 0.5) * 0.5,
+                y: (Math.random() - 0.5) * 0.5,
+                z: (Math.random() - 0.5) * 0.5
+            });
+        }
+        particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePos, 3));
+        
+        // Use a circular texture for realistic glowing particles
+        const createCircleTexture = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 32; canvas.height = 32;
+            const context = canvas.getContext('2d');
+            const gradient = context.createRadialGradient(16, 16, 0, 16, 16, 16);
+            gradient.addColorStop(0, 'rgba(255,255,255,1)');
+            gradient.addColorStop(1, 'rgba(255,255,255,0)');
+            context.fillStyle = gradient;
+            context.fillRect(0, 0, 32, 32);
+            return new THREE.CanvasTexture(canvas);
+        };
+
+        const particleMat = new THREE.PointsMaterial({
+            color: 0x3b82f6,
+            size: 0.6,
+            map: createCircleTexture(),
+            transparent: true,
+            opacity: 0.8,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+        const particles = new THREE.Points(particleGeo, particleMat);
+        coreGroup.add(particles);
+
+        // Physics State Object (Mutated by GSAP on scroll)
+        let physicsState = {
+            particleSpeed: 0.03,
+            particleChaos: 0,
+            rodMovement: 1,
+            color: new THREE.Color(0x3b82f6),
+            lightIntensity: 150
+        };
+
+        // Render Loop
+        const clock = new THREE.Clock();
+        let mouseX = 0;
+        let mouseY = 0;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = clock.getElapsedTime();
+
+            // Slowly rotate the entire core structure
+            coreGroup.rotation.y = time * 0.05;
+
+            // Animate Fuel Rods (Control rods sliding up/down)
+            rodMeshes.forEach(rod => {
+                rod.position.y = rod.userData.baseY + Math.sin(time + rod.position.x) * (2 * physicsState.rodMovement);
+                // Slight emissive glow matching the stage color
+                rod.material.emissive.copy(physicsState.color).multiplyScalar(0.1);
+            });
+
+            // Animate Particles (Neutrons)
+            const positions = particles.geometry.attributes.position.array;
+            for(let i = 0; i < particleCount; i++) {
+                let idx = i * 3;
+                
+                if (physicsState.particleChaos > 0) {
+                    // Fast Neutrons (Stage 2) - High speed, chaotic linear paths
+                    positions[idx] += particleVel[i].x * physicsState.particleChaos;
+                    positions[idx+1] += particleVel[i].y * physicsState.particleChaos;
+                    positions[idx+2] += particleVel[i].z * physicsState.particleChaos;
+                } else {
+                    // Thermal Neutrons (Stage 1 & 3) - Smooth, moderated floating
+                    positions[idx+1] += Math.sin(time * 2 + positions[idx]) * physicsState.particleSpeed; 
+                }
+
+                // Containment Box Boundaries
+                if(Math.abs(positions[idx]) > 30) positions[idx] *= -0.9;
+                if(Math.abs(positions[idx+1]) > 40) positions[idx+1] *= -0.9;
+                if(Math.abs(positions[idx+2]) > 30) positions[idx+2] *= -0.9;
+            }
+            particles.geometry.attributes.position.needsUpdate = true;
+
+            // Smoothly interpolate colors and lighting
+            coreLight.color.lerp(physicsState.color, 0.05);
+            coreLight.intensity = THREE.MathUtils.lerp(coreLight.intensity, physicsState.lightIntensity, 0.05);
+            particleMat.color.lerp(physicsState.color, 0.05);
+            
+            // Link Progress Bar color
+            document.getElementById('progress-bar').style.boxShadow = `0 0 15px #${physicsState.color.getHexString()}`;
+
+            // Cinematic Parallax Mouse Effect
+            camera.position.x += (mouseX * 0.1 - camera.position.x) * 0.05;
+            camera.position.y += (15 + (-mouseY * 0.1) - camera.position.y) * 0.05;
+            camera.lookAt(0, 0, 0);
+
+            renderer.render(scene, camera);
+        }
+
+        document.addEventListener('mousemove', (e) => {
+            mouseX = (e.clientX - window.innerWidth / 2) * 0.15;
+            mouseY = (e.clientY - window.innerHeight / 2) * 0.15;
+        });
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+
+        // ==========================================
+        // GSAP ScrollTrigger Animations
+        // ==========================================
+        gsap.registerPlugin(ScrollTrigger);
+
+        const panels = gsap.utils.toArray('.glass-panel');
+        const dots = gsap.utils.toArray('.dot');
+        const progressBar = document.getElementById('progress-bar');
+
+        // Scroll Progress Bar Update
+        window.addEventListener('scroll', () => {
+            let scrollPercent = (window.scrollY / (document.body.scrollHeight - window.innerHeight)) * 100;
+            progressBar.style.width = scrollPercent + '%';
+        });
+
+        // Fade in text panels
+        panels.forEach((panel) => {
+            gsap.to(panel, {
+                scrollTrigger: {
+                    trigger: panel,
+                    start: "top 85%",
+                    end: "top 40%",
+                    scrub: 1
+                },
+                opacity: 1,
+                y: 0,
+                duration: 1,
+                ease: "power2.out"
+            });
+        });
+
+        // --- 3D Scene Physics Transitions Linked to Scroll ---
+
+        // Stage 1 (PHWR - Blue, Slow Thermal Neutrons, Submerged look)
+        ScrollTrigger.create({
+            trigger: "#stage1",
+            start: "top center",
+            onEnter: () => {
+                gsap.to(physicsState, { particleSpeed: 0.03, particleChaos: 0, rodMovement: 1, lightIntensity: 150, duration: 1.5 });
+                physicsState.color = new THREE.Color(0x3b82f6);
+                progressBar.style.background = "#3b82f6";
+                updateDots(2);
+            },
+            onEnterBack: () => {
+                gsap.to(physicsState, { particleSpeed: 0.03, particleChaos: 0, rodMovement: 1, lightIntensity: 150, duration: 1.5 });
+                physicsState.color = new THREE.Color(0x3b82f6);
+                progressBar.style.background = "#3b82f6";
+                updateDots(2);
+            }
+        });
+
+        // Stage 2 (FBR - Orange, Fast Chaotic Neutrons, High Energy)
+        ScrollTrigger.create({
+            trigger: "#stage2",
+            start: "top center",
+            onEnter: () => {
+                // High chaos simulating fast, unmoderated neutrons
+                gsap.to(physicsState, { particleSpeed: 0, particleChaos: 1.5, rodMovement: 2.5, lightIntensity: 250, duration: 1.5 });
+                physicsState.color = new THREE.Color(0xf97316);
+                progressBar.style.background = "#f97316";
+                updateDots(3);
+            },
+            onEnterBack: () => {
+                gsap.to(physicsState, { particleSpeed: 0, particleChaos: 1.5, rodMovement: 2.5, lightIntensity: 250, duration: 1.5 });
+                physicsState.color = new THREE.Color(0xf97316);
+                progressBar.style.background = "#f97316";
+                updateDots(3);
+            }
+        });
+
+        // Stage 3 (AHWR - Green, Stable Self-sustaining Loop)
+        ScrollTrigger.create({
+            trigger: "#stage3",
+            start: "top center",
+            onEnter: () => {
+                // Stable, steady pulsing loop
+                gsap.to(physicsState, { particleSpeed: 0.05, particleChaos: 0, rodMovement: 0.5, lightIntensity: 180, duration: 2 });
+                physicsState.color = new THREE.Color(0x10b981);
+                progressBar.style.background = "#10b981";
+                updateDots(4);
+            }
+        });
+
+        // Geology Section Setup (Neutral State)
+        ScrollTrigger.create({
+            trigger: "#geology",
+            start: "top center",
+            onEnter: () => updateDots(1),
+            onEnterBack: () => updateDots(1)
+        });
+
+        // Hero Section Setup (Neutral State)
+        ScrollTrigger.create({
+            trigger: "#hero",
+            start: "top center",
+            onEnter: () => updateDots(0),
+            onEnterBack: () => updateDots(0)
+        });
+
+        // Navigation Dot Highlighter
+        function updateDots(index) {
+            dots.forEach((dot, i) => {
+                if(i === index) dot.classList.add('active');
+                else dot.classList.remove('active');
+            });
+        }
+    </script>
+</body>
+</html>
